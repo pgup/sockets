@@ -1,8 +1,17 @@
 #include <iostream>
 #include <cstring>
-#include <sys/socket.h>
 #include <sys/types.h>
+
+#if defined(WIN32)
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#pragma comment(lib, "Ws2_32.lib")
+#elif defined(__linux__)
+#include <sys/socket.h>
+#include <netdb.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
 
 #define PORT_NUMBER 54321
 #define DATA_SIZE 1024
@@ -11,11 +20,35 @@ using namespace std;
 
 int main()
 {
-    int server_sock;
+
+    SOCKET server_sock;
+
+#if defined (WIN32)
+    WSADATA WSAdata;
+
+    int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
+    if (res != 0)
+    {
+        cout << "couldn't start up WSA for windows sockets" << endl;
+        exit(-1);
+    }
+#endif
 
     //create socket
-    if ((server_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-            cout << "ERROR creating server socket" << endl;
+    server_sock = socket(AF_INET, SOCK_DGRAM, 0);
+#if defined(WIN32)
+    if (server_sock == INVALID_SOCKET)
+    {
+        cout << "ERROR creating server socket" << endl;
+        exit(-1);
+    }
+#elif defined(__linux__)
+    if (server_sock < 0)
+    {
+        cout << "ERROR creating server socket" << endl;
+        exit(-1);
+    }
+#endif
 
     sockaddr_in server_addr, client_addr;
     memset(&server_addr, 0, sizeof(server_addr));
