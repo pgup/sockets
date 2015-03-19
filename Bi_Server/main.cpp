@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <sys/types.h>
+#include <cstdlib>
 
 #if defined(WIN32)
 #include <WinSock2.h>
@@ -20,10 +21,8 @@ using namespace std;
 
 int main()
 {
-
-    SOCKET server_sock;
-
 #if defined (WIN32)
+    SOCKET server_sock;
     WSADATA WSAdata;
 
     int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
@@ -32,6 +31,8 @@ int main()
         cout << "couldn't start up WSA for windows sockets" << endl;
         exit(-1);
     }
+#elif defined (__linux__)
+    int server_sock;
 #endif
 
     //create socket

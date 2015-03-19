@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <ctime>
+#include <cstdlib>
 
 #if defined(WIN32)
 #include <WinSock2.h>
@@ -46,11 +47,11 @@ using namespace std;
 
 int main()
 {
-    SOCKET client_sock;
     sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
 
 #if defined (WIN32)
+    SOCKET client_sock;
     WSADATA WSAdata;
 
     int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
@@ -59,6 +60,8 @@ int main()
         cout << "couldn't start up WSA for windows sockets" << endl;
         exit(-1);
     }
+#elif defined (__linux__)
+    int client_sock;
 #endif
 
     //create socket
@@ -79,7 +82,7 @@ int main()
 
     socklen_t addr_len = sizeof(sockaddr);
 
-#if defined (WIN32)// && defined (__MINGW32__) //for mingw
+#if defined (WIN32)
 
     //create server address from string and copy it to server_addr
     if (WSAStringToAddress(SERVER_ADDRESS, AF_INET, NULL, (sockaddr *)&server_addr, &addr_len) != 0)
@@ -88,8 +91,6 @@ int main()
         exit(-1);
     }
 
-//#elif defined (WIN32) && defined (_MSC_VER) //for msvc
-  //  InetPton(AF_INET, SERVER_ADDRESS, &server_addr.sin_addr);
 #elif defined (__linux__)
     inet_pton(AF_INET, SERVER_ADDRESS, &server_addr.sin_addr);
 #endif
