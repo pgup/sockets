@@ -15,7 +15,8 @@
 #endif
 
 #define PORT_NUMBER 54321
-#define DATA_SIZE 1024
+#define DATA_SIZE 1
+
 
 using namespace std;
 
@@ -75,7 +76,7 @@ int main()
         {
             sendto(server_sock, data_recv, DATA_SIZE, 0, (sockaddr *) &client_addr, sock_len);
             messages_recvd++;
-            cout << "message number " << messages_recvd << " receieved, bytes: " << n_recv << endl;
+//            cout << "message number " << messages_recvd << " receieved, bytes: " << n_recv << endl;
         }
     }
 

@@ -17,14 +17,14 @@
 #endif
 
 #define PORT_NUMBER 54321
-#define DATA_SIZE 1024 * 1
+#define DATA_SIZE 64000
 
 #define PACKETS_TO_SEND 100
 
 
 //this address needs to be changed based on what the server address actually is!!!
 #if defined (WIN32)
-#define SERVER_ADDRESS __TEXT("192.168.1.143")
+#define SERVER_ADDRESS __TEXT("10.189.25.139")
 #else
 #define SERVER_ADDRESS "192.168.1.143"
 #endif
@@ -95,12 +95,26 @@ int main()
     inet_pton(AF_INET, SERVER_ADDRESS, &server_addr.sin_addr);
 #endif
 
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 500;
+
+    if (setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout)) < 0)
+    {
+        std::cout << "couldn't set sockopt" << std::endl;
+        exit(-1);
+    }
+    if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)) < 0)
+    {
+        std::cout << "couldn't set sockopt" << std::endl;
+        exit(-1);
+    }
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT_NUMBER);
 
     char *data_send = new char[DATA_SIZE];
     int replies_recvd = 0;
-
 
     clock_t total_runtime = clock();
     for (int i = 0; i < PACKETS_TO_SEND; i++)
@@ -121,7 +135,7 @@ int main()
     delete[] data_send;
 
     cout << "received " << replies_recvd << " replies out of " << PACKETS_TO_SEND << " packets sent" << endl;
-    cout << "average RTT " << total_runtime / CLOCKS_PER_SEC << endl;
+    cout << "average RTT " << (double)total_runtime / CLOCKS_PER_SEC / PACKETS_TO_SEND << endl;
 
     return 0;
 }
