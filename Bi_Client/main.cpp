@@ -47,13 +47,12 @@
 
 using namespace std;
 
+#if defined (WIN32)
 int main()
 {
     sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
 
-#if defined (WIN32)
-    SOCKET client_sock;
     WSADATA WSAdata;
 
     int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
@@ -62,29 +61,17 @@ int main()
         cout << "couldn't start up WSA for windows sockets" << endl;
         exit(-1);
     }
-#elif defined (__linux__)
-    int client_sock;
-#endif
 
     //create socket
-    client_sock = socket(AF_INET, SOCK_DGRAM, 0);
-#if defined (WIN32)
+    SOCKET client_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (client_sock == INVALID_SOCKET)
     {
         cout << "ERROR creating server socket" << endl;
         exit(-1);
     }
-#elif defined (__linux__)
-    if (client_sock < 0)
-    {
-        cout << "ERROR creating server socket" << endl;
-        exit(-1);
-    }
-#endif
 
     socklen_t addr_len = sizeof(sockaddr);
 
-#if defined (WIN32)
 
     //create server address from string and copy it to server_addr
     if (WSAStringToAddress(SERVER_ADDRESS, AF_INET, NULL, (sockaddr *)&server_addr, &addr_len) != 0)
@@ -93,11 +80,7 @@ int main()
         exit(-1);
     }
 
-#elif defined (__linux__)
-    inet_pton(AF_INET, SERVER_ADDRESS, &server_addr.sin_addr);
-#endif
-
-#if defined (WIN32)
+    //set timeouts for packets
     DWORD timeout = TIMEOUT_SEC * 1000 + TIMEOUT_USEC;
     if (setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout)) < 0)
     {
@@ -109,7 +92,53 @@ int main()
         std::cout << "couldn't set sockopt" << std::endl;
         exit(-1);
     }
-#else
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT_NUMBER);
+
+    char *data_send = new char[DATA_SIZE];
+    int replies_recvd = 0;
+
+    clock_t total_runtime = clock();
+    for (int i = 0; i < PACKETS_TO_SEND; i++)
+    {
+        //if the server is not running, Windows will recvfrom() an error packet
+        //from the failed sendto. This doesn't happen in Linux.
+        sendto(client_sock, data_send, DATA_SIZE, 0, (sockaddr *)&server_addr, addr_len);
+
+        int n_recv = recvfrom(client_sock, data_send, DATA_SIZE, 0, (sockaddr *)&server_addr, &addr_len);
+
+        if (n_recv > 0)
+            replies_recvd++;
+    }
+
+    total_runtime = clock() - total_runtime;
+
+    delete[] data_send;
+
+    cout << "received " << replies_recvd << " replies out of " << PACKETS_TO_SEND << " packets sent" << endl;
+    cout << "average RTT " << (double)total_runtime / CLOCKS_PER_SEC / PACKETS_TO_SEND << endl;
+
+    return 0;
+}
+
+#elif defined (__linux__)
+int main()
+{
+    sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+
+    //create socket
+    int client_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (client_sock < 0)
+    {
+        cout << "ERROR creating server socket" << endl;
+        exit(-1);
+    }
+
+    socklen_t addr_len = sizeof(sockaddr);
+
+    inet_pton(AF_INET, SERVER_ADDRESS, &server_addr.sin_addr);
+
     struct timeval timeout;
     timeout.tv_sec = TIMEOUT_SEC;
     timeout.tv_usec = TIMEOUT_USEC;
@@ -123,7 +152,6 @@ int main()
         std::cout << "couldn't set sockopt" << std::endl;
         exit(-1);
     }
-#endif
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT_NUMBER);
@@ -153,3 +181,4 @@ int main()
 
     return 0;
 }
+#endif

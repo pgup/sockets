@@ -23,7 +23,6 @@ using namespace std;
 int main()
 {
 #if defined (WIN32)
-    SOCKET server_sock;
     WSADATA WSAdata;
 
     int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
@@ -32,19 +31,18 @@ int main()
         cout << "couldn't start up WSA for windows sockets" << endl;
         exit(-1);
     }
-#elif defined (__linux__)
-    int server_sock;
-#endif
 
     //create socket
-    server_sock = socket(AF_INET, SOCK_DGRAM, 0);
-#if defined(WIN32)
+    SOCKET server_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (server_sock == INVALID_SOCKET)
     {
         cout << "ERROR creating server socket" << endl;
         exit(-1);
     }
+
 #elif defined(__linux__)
+    //create socket
+    int server_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (server_sock < 0)
     {
         cout << "ERROR creating server socket" << endl;
