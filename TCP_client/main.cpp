@@ -9,13 +9,13 @@
 #endif
 
 #define PORT_NUMBER 54321
-#define DATA_SIZE 1024 * 4
+#define DATA_SIZE 64000
 #define TIMEOUT_SEC 2
 #define TIMEOUT_USEC 250
 
 #define PACKETS_TO_SEND 100
 
-#define SERVER_ADDRESS __TEXT("192.168.1.115")
+#define SERVER_ADDRESS __TEXT("192.168.1.143")
 
 using namespace std;
 
@@ -67,10 +67,40 @@ int main()
 
     for (int i = 0; i < PACKETS_TO_SEND; i++)
     {
-        if (send(client_sock, data_send, DATA_SIZE, 0) < 0)
-            cout << "tcp error" << endl;
+        //make sure the whole 'packet' is sent and recv by looping
+        //the kernel may not necessarily send the whole packet in one send
+        //and also may not receive the whole packet with one recv.
+        //This probably isn't the best way to achieve the desired result
+        int total_sent = 0;
+        while (total_sent < DATA_SIZE)
+        {
+            int n_sent = send(client_sock, data_send + total_sent,
+                              DATA_SIZE - total_sent, 0);
 
-        recv(client_sock, data_send, DATA_SIZE, 0);
+            if (n_sent < 0)
+            {
+                cerr << "error while sending data" << endl;
+                break;
+            }
+
+            total_sent += n_sent;
+
+        }
+
+        int total_recv = 0;
+        while (total_recv < DATA_SIZE)
+        {
+            int n_recv = recv(client_sock, data_send + total_recv,
+                              DATA_SIZE - total_recv, 0);
+
+            if (n_recv < 0)
+            {
+                cerr << "error while receiving data" << endl;
+                break;
+            }
+
+            total_recv += n_recv;
+        }
     }
 
     total_runtime = clock() - total_runtime;

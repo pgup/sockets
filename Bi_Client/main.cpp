@@ -9,14 +9,14 @@
 #endif
 
 #define PORT_NUMBER 54321
-#define DATA_SIZE 1024 * 4
+#define DATA_SIZE 64000
 #define TIMEOUT_SEC 2
 #define TIMEOUT_USEC 250
 
 #define PACKETS_TO_SEND 100
 
 //this address needs to be changed based on what the server address actually is!!!
-#define SERVER_ADDRESS __TEXT("192.168.1.115")
+#define SERVER_ADDRESS __TEXT("192.168.1.143")
 
 /*
  * there are three ways to get the IP of the server address.
@@ -93,14 +93,56 @@ int main()
     {
         //if the server is not running, Windows will recvfrom() an error packet
         //from the failed sendto. This doesn't happen in Linux.
-        sendto(client_sock, data_send, DATA_SIZE, 0,
-               (sockaddr *)&server_addr, addr_len);
+//        int n_sent = 0;
+////        while (n_sent != DATA_SIZE)
+//            n_sent += sendto(client_sock, data_send, DATA_SIZE, 0,
+//                            (sockaddr *)&server_addr, addr_len);
 
 
-        int n_recv = recvfrom(client_sock, data_send, DATA_SIZE, 0,
-                              (sockaddr *)&server_addr, &addr_len);
+//        int n_recv = 0;
+////        do
+////        {
+//            n_recv += recvfrom(client_sock, data_send, DATA_SIZE, 0,
+//                              (sockaddr *)&server_addr, &addr_len);
+////        } while (n_recv > 0 && n_recv < DATA_SIZE);
 
-        if (n_recv > 0)
+//            cout << "sent " << n_sent << endl;
+//            cout << "recv " << n_recv << endl;
+
+
+        int total_sent = 0;
+        while (total_sent < DATA_SIZE)
+        {
+            int n_sent = sendto(client_sock, data_send + total_sent,
+                                DATA_SIZE - total_sent, 0,
+                                (sockaddr *)&server_addr, addr_len);
+
+            if (n_sent < 0)
+            {
+                cerr << "error while sending data" << endl;
+                break;
+            }
+
+            total_sent += n_sent;
+        }
+
+        int total_recv = 0;
+        while (total_recv < DATA_SIZE)
+        {
+            int n_recv = recvfrom(client_sock, data_send + total_recv,
+                                  DATA_SIZE - total_recv, 0,
+                                  (sockaddr *)&server_addr, &addr_len);
+
+            if (n_recv < 0)
+            {
+                cerr << "error while receiving data" << endl;
+                break;
+            }
+
+            total_recv += n_recv;
+        }
+
+        if (total_recv > 0)
             replies_recvd++;
     }
 

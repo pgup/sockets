@@ -9,6 +9,8 @@
 
 #define PORT_NUMBER 54321
 #define DATA_SIZE 64000
+#define TIMEOUT_SEC 2
+#define TIMEOUT_USEC 250
 
 #define CLIENTS 2
 
@@ -65,6 +67,21 @@ int main()
         exit (-1);
     }
 
+    //set timout for udp socket
+    DWORD timeout = TIMEOUT_SEC * 1000000 + TIMEOUT_USEC;
+    if (setsockopt(udp_sock, SOL_SOCKET, SO_SNDTIMEO,
+                   (const char *)&timeout, sizeof(timeout)) < 0)
+    {
+        std::cout << "couldn't set sockopt" << std::endl;
+        exit(-1);
+    }
+    if (setsockopt(udp_sock, SOL_SOCKET, SO_RCVTIMEO,
+                   (const char *)&timeout, sizeof(timeout)) < 0)
+    {
+        std::cout << "couldn't set sockopt" << std::endl;
+        exit(-1);
+    }
+
     fd_set client_socks;
     fd_set read_socks;
 
@@ -77,12 +94,14 @@ int main()
 
     while (true)
     {
-        read_socks = client_socks;
-//        FD_ZERO(&read_socks);
-//        for (unsigned int i = 0; i < client_socks.fd_count; i++)
-//        {
-//            FD_SET(client_socks.fd_array[i], &read_socks);
-//        }
+//        read_socks = client_socks;
+        //clear the sockets to read from and reestablish the clients
+        //that are already connected as well as the listener and udp sockets
+        FD_ZERO(&read_socks);
+        for (unsigned int i = 0; i < client_socks.fd_count; i++)
+        {
+            FD_SET(client_socks.fd_array[i], &read_socks);
+        }
 
         if (select(0, &read_socks, NULL, NULL, NULL) < 0)
         {
@@ -90,19 +109,29 @@ int main()
             exit(-1);
         }
 
+        //communication on the listener aka:
+        //there is a client awaiting connection
         if (FD_ISSET(listener_sock, &read_socks))
         {
-                //received a new TCP connection request
-                sockaddr_in new_client_addr;
-                SOCKET new_client = accept(listener_sock,
-                                           (sockaddr *)&new_client_addr,
-                                           &sock_len);
-                FD_SET(new_client, &client_socks);
-
-                cout << "new connection" << endl;
+            //received a new TCP connection request
+            sockaddr_in new_client_addr;
+            SOCKET new_client = accept(listener_sock,
+                                       (sockaddr *)&new_client_addr,
+                                       &sock_len);
+            FD_SET(new_client, &client_socks);
         }
+        //communication on the udp socket
         else if (FD_ISSET(udp_sock, &read_socks))
         {
+//            int n_recv = 0;
+//            do
+//            {
+//                n_recv += recv(udp_sock, data_recv, DATA_SIZE, 0);
+//            } while(n_recv > 0 && n_recv < DATA_SIZE);
+
+//            int n_sent = 0;
+//            while (n_sent != DATA_SIZE)
+//                n_sent += send(udp_sock, data_recv, DATA_SIZE, 0);
             int n_recv = recvfrom(udp_sock, data_recv, DATA_SIZE, 0,
                                   (sockaddr *) &client_addr, &sock_len);
 
@@ -112,16 +141,35 @@ int main()
                        (sockaddr *) &client_addr, sock_len);
             }
         }
-        //the communication occured from one of the clients
+        //the communication occured from one of the connected TCP clients
         else
             for (unsigned int i = 0; i < read_socks.fd_count; i++)
             {
                 SOCKET client = read_socks.fd_array[i];
                 if (FD_ISSET(client, &read_socks))
                 {
-                    int n_recv = recv(client, data_recv, DATA_SIZE, 0);
 
-                    if (n_recv == SOCKET_ERROR)
+                    //same for the client...
+                    //loop and make sure the whole packet is sent and recv'd
+                    int total_recv = 0;
+
+                    while(total_recv < DATA_SIZE)
+                    {
+                        int n_recv = recv(client, data_recv + total_recv,
+                                          DATA_SIZE - total_recv, 0);
+
+                        //error of some kind, or connection closed -> break out
+                        if (n_recv <= 0)
+                        {
+                            total_recv = n_recv;
+                            break;
+                        }
+
+                        //increment position and continue recv()ing
+                        total_recv += n_recv;
+                    }
+
+                    if (total_recv == SOCKET_ERROR)
                     {
                         int error = WSAGetLastError();
 
@@ -131,14 +179,27 @@ int main()
                             FD_CLR(client, &client_socks);
                         }
                     }
-
-                    if (n_recv == 0)
+                    //the connection was closed
+                    if (total_recv == 0)
                     {
                         FD_CLR(client, &client_socks);
                         closesocket(client);
                     }
                     else
-                        send(client, data_recv, n_recv, 0);
+                    {
+                        int total_sent = 0;
+                        while (total_sent < DATA_SIZE)
+                        {
+                            int n_sent = send(client, data_recv + total_sent,
+                                              DATA_SIZE - total_sent, 0);
+
+                            //error of some kind, break out
+                            if (n_sent < 0)
+                                break;
+
+                            total_sent += n_sent;
+                        }
+                    }
                 }
             }
 
