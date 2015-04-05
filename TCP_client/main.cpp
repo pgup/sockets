@@ -24,10 +24,10 @@ int main()
     sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
 
+    //start up Winsock
     WSADATA WSAdata;
 
-    int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
-    if (res != 0)
+    if (WSAStartup(MAKEWORD(2, 2), &WSAdata) != 0)
     {
         cout << "couldn't start up WSA for windows sockets" << endl;
         exit(-1);

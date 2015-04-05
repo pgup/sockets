@@ -18,6 +18,7 @@ using namespace std;
 
 int main()
 {
+    //start up Winsock
     WSADATA WSAdata;
 
     int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);

@@ -13,7 +13,7 @@
 #define TIMEOUT_SEC 2
 #define TIMEOUT_USEC 250
 
-#define PACKETS_TO_SEND 100
+#define PACKETS_TO_SEND 1000
 
 //this address needs to be changed based on what the server address actually is!!!
 #define SERVER_ADDRESS __TEXT("192.168.1.143")
@@ -39,6 +39,7 @@ int main()
     sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
 
+    //start up Winsock
     WSADATA WSAdata;
 
     int res = WSAStartup(MAKEWORD(2, 2), &WSAdata);
@@ -68,7 +69,7 @@ int main()
     }
 
     //set timeouts for packets
-    DWORD timeout = TIMEOUT_SEC * 1000000 + TIMEOUT_USEC;
+    DWORD timeout = TIMEOUT_SEC * 1000 + TIMEOUT_USEC;
     if (setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO,
                    (const char *)&timeout, sizeof(timeout)) < 0)
     {
@@ -81,6 +82,8 @@ int main()
         std::cout << "couldn't set sockopt" << std::endl;
         exit(-1);
     }
+
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT_NUMBER);
 
@@ -93,22 +96,6 @@ int main()
     {
         //if the server is not running, Windows will recvfrom() an error packet
         //from the failed sendto. This doesn't happen in Linux.
-//        int n_sent = 0;
-////        while (n_sent != DATA_SIZE)
-//            n_sent += sendto(client_sock, data_send, DATA_SIZE, 0,
-//                            (sockaddr *)&server_addr, addr_len);
-
-
-//        int n_recv = 0;
-////        do
-////        {
-//            n_recv += recvfrom(client_sock, data_send, DATA_SIZE, 0,
-//                              (sockaddr *)&server_addr, &addr_len);
-////        } while (n_recv > 0 && n_recv < DATA_SIZE);
-
-//            cout << "sent " << n_sent << endl;
-//            cout << "recv " << n_recv << endl;
-
 
         int total_sent = 0;
         while (total_sent < DATA_SIZE)
